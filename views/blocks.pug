@@ -1,0 +1,22 @@
+extends layout
+
+block content
+	if (blocks)
+		div.card.shadow-sm.mb-3
+			div.card-body
+				include includes/blocks-list.pug
+
+				if (blockCount > limit)
+					- var pageNumber = offset / limit + 1;
+					- var pageCount = Math.floor(blockCount / limit);
+					- if (pageCount * limit < blockCount) {
+						- pageCount++;
+					- }
+					- var paginationUrlFunction = function(x) {
+						- return paginationBaseUrl + "?offset=" + ((x - 1) * limit + "&sort=" + sort);
+					- }
+					
+		div.pt-5
+			include includes/pagination.pug
+	else
+		p No blocks found

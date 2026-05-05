@@ -1,0 +1,5 @@
+mixin avalancheCheck(finalized)
+    if finalized === true
+        a(data-toggle="tooltip", title="Finalized by Avalanche.")
+            i.fas.fa-check(color="green")
+

@@ -1,0 +1,63 @@
+{
+  "name": "bch-rpc-explorer",
+  "version": "0.0.3",
+  "description": "Self-hosted Bitcoin Cash blockchain explorer",
+  "private": false,
+  "bin": "bin/cli.js",
+  "scripts": {
+    "start": "./bin/cli.js"
+  },
+  "keywords": [
+    "bitcoin cash",
+    "blockchain",
+    "Peer-to-peer Electronic Cash System"
+  ],
+  "author": "Andrea (sickpig) Suisani <sickpig@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sickpig/bch-rpc-explorer.git"
+  },
+  "dependencies": {
+    "async": "^3.2.0",
+    "basic-auth": "^2.0.1",
+    "bitcoin-core": "EchterAgo/bitcoin-core#c30b4a0cd51305449c08ca361b15afc1646b5388",
+    "bitcoinjs-lib": "^5.1.8",
+    "bluebird": "^3.7.2",
+    "body-parser": "~1.19.0",
+    "cashaddrjs": "^0.3.12",
+    "cookie-parser": "^1.4.5",
+    "crypto-js": "3.1.9-1",
+    "csurf": "^1.11.0",
+    "debug": "~4.1.1",
+    "decimal.js": "^10.2.0",
+    "dotenv": "^8.2.0",
+    "electrum-client": "github:janoside/electrum-client",
+    "express": "^4.17.1",
+    "express-session": "^1.17.1",
+    "jstransformer-markdown-it": "^2.1.0",
+    "lru-cache": "^5.1.1",
+    "marked": "^0.7.0",
+    "md5": "^2.2.1",
+    "meow": "^5.0.0",
+    "moment": "^2.27.0",
+    "moment-duration-format": "^2.3.2",
+    "morgan": "^1.10.0",
+    "pug": "^2.0.4",
+    "qrcode": "^1.4.4",
+    "redis": "^2.8.0",
+    "request": "^2.88.2",
+    "semver": "^7.3.2",
+    "serve-favicon": "^2.5.0",
+    "simple-git": "^1.132.0",
+    "text-decoding": "^1.0.0",
+    "msgpack-lite": "^0.1.26"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^3.6.0",
+    "@typescript-eslint/parser": "^3.6.0",
+    "eslint": "^7.4.0",
+    "less": "3.9.0",
+    "npm-run-all": "^4.1.5"
+  }
+}

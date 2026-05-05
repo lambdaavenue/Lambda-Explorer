@@ -1,0 +1,112 @@
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+hr {
+	background-color: #555555;
+}
+
+.nav-tabs .nav-link.active {
+	border-color: #9a9b9c #9a9b9c #0c0c0c !important;
+}
+
+.data-tag {
+	color: #111 !important;
+	border-color: #cccccc !important;
+}
+
+.data-tag.bg-dark {
+	background-color: #cccccc !important;
+}
+
+.alert {
+	opacity: 0.8 !important;
+}
+
+hr {
+	border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.hljs-attr {
+	color: #eeeeee;
+}
+
+.hljs, .hljs-subst {
+	color: #dddddd;
+}
+
+.hljs-type, .hljs-string, .hljs-number, .hljs-selector-id, .hljs-selector-class, .hljs-quote, .hljs-template-tag, .hljs-deletion {
+	color: #95dbc6;
+}
+
+a {
+	color: #00ABE7
+}
+a:hover {
+    color: #00ABE7;
+    text-decoration: underline;
+}
+
+.btn-primary {
+    color: #f2f3f4;
+    background-color: #4D4D4D;
+    border-color: #4D4D4D;
+}
+.btn-primary:hover {
+    color: #fff;
+    background-color: #00ABE7;
+    border-color: #00ABE7;
+}
+.btn-primary.focus,
+.btn-primary:focus {
+    color: #fff;
+    background-color: #00ABE7;
+    border-color: #00ABE7;
+    box-shadow: 0 0 0 0.2rem rgba(113, 179, 251, 0.5);
+}
+.btn-primary.disabled,
+.btn-primary:disabled {
+    color: #f2f3f4;
+    background-color: #00ABE7;
+    border-color: #00ABE7;
+}
+.btn-primary:not(:disabled):not(.disabled).active,
+.btn-primary:not(:disabled):not(.disabled):active,
+.show > .btn-primary.dropdown-toggle {
+    color: #fff;
+    background-color: #00ABE7;
+    border-color: #00ABE7;
+}
+.navbar-dark .navbar-text a {
+    color: #00ABE7;
+}
+.page-link {
+    position: relative;
+    display: block;
+    padding: 0.5rem 0.75rem;
+    margin-left: -1px;
+    line-height: 1.25;
+    color: #FFFFFF;
+    background-color: #0c0c0c;
+    border: 1px solid #282d33;
+}
+.page-link:hover {
+    z-index: 2;
+    color: #FFFFFF;
+    text-decoration: none;
+    background-color: #282d33;
+    border-color: #282d33;
+}
+.page-item.active .page-link {
+    z-index: 3;
+    color: #fff;
+    background-color: #00ABE7;
+    border-color: #4D4D4D;
+}
+.page-item.disabled .page-link {
+    color: #000;
+    pointer-events: none;
+    cursor: auto;
+    background-color: #202326;
+    border-color: #282d33;
+}

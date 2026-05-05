@@ -1,0 +1,24 @@
+include avalanche_checkmark.pug
+div.table-responsive
+	table.table.table-striped.mb-0
+		thead
+			tr
+				th.data-header.text-left Block height
+				th.data-header.text-right Timestamp
+				th.data-header.text-right Transactions
+				th.data-header.text-right Size
+		tbody
+
+			each block, blockIndex in blocks
+				if (block && ((sort == "desc" && blockIndex < blocks.length - 1) || (sort == "asc" && (block.height == 0 || blockIndex > 0))))
+					tr
+						td.data-cell.text-monospace.text-left
+							a(href=("/block-height/" + block.height)) #{block.height.toLocaleString()}
+							| 
+							+avalancheCheck(blockstatsByHeight[block.height].finalized)
+						td.data-cell.text-monospace.text-right #{moment(new Date(parseInt(block.time) * 1000)).toISOString()}
+						td.data-cell.text-monospace.text-right #{block.nTx.toLocaleString()}
+						td.data-cell.text-monospace.text-right #{(block.size / 1000).toLocaleString()}
+							small  kB
+
+						- var lastBlock = block;

@@ -1,0 +1,33 @@
+extends layout
+
+block headContent
+	title Home
+	
+block content
+	if (getblockchaininfo == null)
+		div.alert.alert-warning
+			p.font-weight-bold Unable to get basic blockchain data
+			ul
+				li If you just started your node, it may still be initializing.
+				li If your node is already initialized, check your RPC connection info.
+	else
+		if (getblockchaininfo.initialblockdownload)
+			div.alert.alert-warning.shadow-sm.border.mb-3
+				div.font-weight-bold.mb-1 Initial Block Download (IBD) - In Progress...
+
+				div.mb-1 Your node is currently downloading and verifying blockchain data. Until the process is finished, some features of this tool will be unusable and/or unreliable.
+
+				span.font-weight-bold Progress: 
+				span.text-monospace #{new Decimal(getblockchaininfo.verificationprogress).times(100).toDP(3)}%
+
+		if (latestBlocks)
+			div.row.mb-3
+				div.col
+					div.card.shadow-sm
+						div.card-body.px-2.px-sm-3
+
+							- var blocks = latestBlocks;
+							- var blockOffset = 0;
+
+							include includes/blocks-list.pug
+											

@@ -1,0 +1,14 @@
+mixin confirmations(thing,confirmations,finalized)
+  - const confirmationsStr = confirmations.toLocaleString()
+  if finalized === true
+    strong.font-weight-bold.text-success #{confirmationsStr} 
+      a(data-toggle="tooltip", title="This " + thing +" has been finalized by Avalanche.")
+        i.fas.fa-check
+  else if confirmations > 5
+    span.font-weight-bold.text-success #{confirmationsStr} 
+      a(data-toggle="tooltip", title="6 confirmations is generally considered 'settled'. High-value transactions may require more; low-value transactions may require less.")
+        i.fas.fa-lock
+  else
+    span.font-weight-bold.text-warning #{confirmationsStr} 
+      a(data-toggle="tooltip", title="Fewer than 6 confirmations is generally considered 'unsettled' for high-value transactions. The applicability of this guidance may vary.")
+        i.fas.fa-unlock-alt

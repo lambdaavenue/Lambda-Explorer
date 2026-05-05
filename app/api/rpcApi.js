@@ -1,0 +1,517 @@
+var debug = require('debug');
+
+var debugLog = debug("bchexp:rpc");
+
+var async = require("async");
+var semver = require("semver");
+
+var utils = require("../utils.js");
+var config = require("../config.js");
+var coins = require("../coins.js");
+
+var activeQueueTasks = 0;
+
+var rpcQueue = async.queue(function (task, callback) {
+	activeQueueTasks++;
+	//debugLog("activeQueueTasks: " + activeQueueTasks);
+
+	task.rpcCall(function () {
+		callback();
+
+		activeQueueTasks--;
+		//debugLog("activeQueueTasks: " + activeQueueTasks);
+	});
+
+}, config.rpcConcurrency);
+
+var minRpcVersions = { getblockstats: "1.8.0" };
+
+global.rpcStats = {};
+
+
+
+function getBlockchainInfo() {
+	return getRpcData("getblockchaininfo");
+}
+
+function getNetworkInfo() {
+	return getRpcData("getnetworkinfo");
+}
+
+function getNetTotals() {
+	return getRpcData("getnettotals");
+}
+
+function getMempoolInfo() {
+	return getRpcData("getmempoolinfo");
+}
+
+function getMiningInfo() {
+	return getRpcData("getmininginfo");
+}
+
+function getUptimeSeconds() {
+	return getRpcData("uptime");
+}
+
+function getPeerInfo() {
+	return getRpcData("getpeerinfo");
+}
+
+function getMempoolTxids() {
+	return getRpcDataWithParams({ method: "getrawmempool", parameters: [false] });
+}
+
+function getNetworkHashrate(blockCount = 144) {
+	return getRpcDataWithParams({ method: "getnetworkhashps", parameters: [blockCount] });
+}
+
+function getBlockStats(hash_or_height) {
+	if (semver.gte(global.btcNodeSemver, minRpcVersions.getblockstats)) {
+		if ((hash_or_height == coinConfig.genesisBlockHashesByNetwork[global.activeBlockchain] || hash_or_height == 0) && coinConfig.genesisBlockStatsByNetwork[global.activeBlockchain]) {
+			return new Promise(function (resolve, reject) {
+				resolve(coinConfig.genesisBlockStatsByNetwork[global.activeBlockchain]);
+			});
+
+		} else {
+			return getRpcDataWithParams({ method: "getblockstats", parameters: [hash_or_height] });
+		}
+	} else {
+		// unsupported
+		return unsupportedPromise(minRpcVersions.getblockstats);
+	}
+}
+
+function decodeScript(hex) {
+	return getRpcDataWithParams({ method: "decodescript", parameters: [hex] });
+}
+
+function decodeRawTransaction(hex) {
+	return getRpcDataWithParams({ method: "decoderawtransaction", parameters: [hex] });
+}
+
+
+function getUtxoSetSummary() {
+	return getRpcData("gettxoutsetinfo");
+}
+
+function getRawMempool() {
+	return new Promise(function (resolve, reject) {
+		getRpcDataWithParams({ method: "getrawmempool", parameters: [false] }).then(function (txids) {
+			var promises = [];
+
+			for (var i = 0; i < txids.length; i++) {
+				var txid = txids[i];
+
+				promises.push(getRawMempoolEntry(txid));
+			}
+
+			Promise.all(promises).then(function (results) {
+				var finalResult = {};
+
+				for (var i = 0; i < results.length; i++) {
+					if (results[i] != null) {
+						finalResult[results[i].txid] = results[i];
+					}
+				}
+
+				resolve(finalResult);
+
+			}).catch(function (err) {
+				reject(err);
+			});
+
+		}).catch(function (err) {
+			reject(err);
+		});
+	});
+}
+
+function getRawMempoolEntry(txid) {
+	return new Promise(function (resolve, reject) {
+		getRpcDataWithParams({ method: "getmempoolentry", parameters: [txid] }).then(function (result) {
+			result.txid = txid;
+
+			resolve(result);
+
+		}).catch(function (err) {
+			resolve(null);
+		});
+	});
+}
+
+function getChainTxStats(blockCount) {
+	return getRpcDataWithParams({ method: "getchaintxstats", parameters: [blockCount] });
+}
+
+function getBlockHash(blockHeight) {
+	return getRpcDataWithParams({ method: "getblockhash", parameters: [blockHeight] });
+}
+
+function getBlock(hash_or_height) {
+	return getRpcDataWithParams({ method: "getblock", parameters: [hash_or_height] });
+}
+
+function getBlockHeader(hash_or_height) {
+	return getRpcDataWithParams({ method: "getblockheader", parameters: [hash_or_height] });
+}
+
+function getAddress(address) {
+	return getRpcDataWithParams({ method: "validateaddress", parameters: [address] });
+}
+
+function getRawTransaction(txid) {
+	debugLog("getRawTransaction: %s", txid);
+
+	return new Promise(function (resolve, reject) {
+		if (coins[config.coin].genesisCoinbaseTransactionIdsByNetwork[global.activeBlockchain] && txid == coins[config.coin].genesisCoinbaseTransactionIdsByNetwork[global.activeBlockchain]) {
+			// copy the "confirmations" field from genesis block to the genesis-coinbase tx
+			getBlockchainInfo().then(function (blockchainInfoResult) {
+				var result = coins[config.coin].genesisCoinbaseTransactionsByNetwork[global.activeBlockchain];
+				result.confirmations = blockchainInfoResult.blocks;
+
+				// hack: default regtest node returns "0" for number of blocks, despite including a genesis block;
+				// to display this block without errors, tag it with 1 confirmation
+				if (global.activeBlockchain == "regtest" && result.confirmations == 0) {
+					result.confirmations = 1;
+				}
+
+				resolve(result);
+
+			}).catch(function (err) {
+				reject(err);
+			});
+
+		} else {
+			getRpcDataWithParams({ method: "getrawtransaction", parameters: [txid, 1] }).then(function (result) {
+				if (result == null || result.code && result.code < 0) {
+					reject(result);
+
+					return;
+				}
+
+				// ABC & BCHN do not set the confirmations property on unconfirmed TXs
+				if (result.confirmations === undefined)
+					result.confirmations = 0;
+
+				resolve(result);
+
+			}).catch(function (err) {
+				reject(err);
+			});
+		}
+	});
+}
+
+function getUtxo(txid, outputIndex) {
+	debugLog("getUtxo: %s (%d)", txid, outputIndex);
+
+	return new Promise(function (resolve, reject) {
+		getRpcDataWithParams({ method: "gettxout", parameters: [txid, outputIndex] }).then(function (result) {
+			if (result == null) {
+				resolve("0");
+
+				return;
+			}
+
+			if (result.code && result.code < 0) {
+				reject(result);
+
+				return;
+			}
+
+			resolve(result);
+
+		}).catch(function (err) {
+			reject(err);
+		});
+	});
+}
+
+function getMempoolTxDetails(txid, includeAncDec = true) {
+	debugLog("getMempoolTxDetails: %s", txid);
+
+	var promises = [];
+
+	var mempoolDetails = {};
+
+	promises.push(new Promise(function (resolve, reject) {
+		getRpcDataWithParams({ method: "getmempoolentry", parameters: [txid] }).then(function (result) {
+			mempoolDetails.entry = result;
+
+			resolve();
+
+		}).catch(function (err) {
+			reject(err);
+		});
+	}));
+
+	if (includeAncDec) {
+		promises.push(new Promise(function (resolve, reject) {
+			getRpcDataWithParams({ method: "getmempoolancestors", parameters: [txid] }).then(function (result) {
+				mempoolDetails.ancestors = result;
+
+				resolve();
+
+			}).catch(function (err) {
+				reject(err);
+			});
+		}));
+
+		promises.push(new Promise(function (resolve, reject) {
+			getRpcDataWithParams({ method: "getmempooldescendants", parameters: [txid] }).then(function (result) {
+				mempoolDetails.descendants = result;
+
+				resolve();
+
+			}).catch(function (err) {
+				reject(err);
+			});
+		}));
+	}
+
+	return new Promise(function (resolve, reject) {
+		Promise.all(promises).then(function () {
+			resolve(mempoolDetails);
+
+		}).catch(function (err) {
+			reject(err);
+		});
+	});
+}
+
+function getHelp() {
+	return getRpcData("help");
+}
+
+function getRpcMethodHelp(methodName) {
+	return getRpcDataWithParams({ method: "help", parameters: [methodName] });
+}
+
+
+
+function getRpcData(cmd) {
+	var startTime = new Date().getTime();
+
+	return new Promise(function (resolve, reject) {
+		debugLog(`RPC: ${cmd}`);
+
+		rpcCall = function (callback) {
+			var client = (cmd == "gettxoutsetinfo" ? global.rpcClientNoTimeout : global.rpcClient);
+
+			client.command(cmd, function (err, result, resHeaders) {
+				try {
+					if (err) {
+						logStats(cmd, false, new Date().getTime() - startTime, false);
+
+						throw new Error(`RpcError: type=failure-01`);
+					}
+
+					if (Array.isArray(result) && result.length == 1) {
+						var result0 = result[0];
+
+						if (result0 && result0.name && result0.name == "RpcError") {
+							logStats(cmd, false, new Date().getTime() - startTime, false);
+
+							throw new Error(`RpcError: type=errorResponse-01`);
+						}
+					}
+
+					if (result.name && result.name == "RpcError") {
+						logStats(cmd, false, new Date().getTime() - startTime, false);
+
+						throw new Error(`RpcError: type=errorResponse-02`);
+					}
+
+					resolve(result);
+
+					logStats(cmd, false, new Date().getTime() - startTime, true);
+
+					callback();
+
+				} catch (e) {
+					e.userData = { error: err, request: cmd, result: result };
+
+					utils.logError("9u4278t5h7rfhgf", e, { error: err, request: cmd, result: result });
+
+					reject(e);
+
+					callback();
+				}
+			});
+		};
+
+		rpcQueue.push({ rpcCall: rpcCall });
+	});
+}
+
+function getRpcDataWithParams(request) {
+	var startTime = new Date().getTime();
+
+	return new Promise(function (resolve, reject) {
+		debugLog(`RPC: ${JSON.stringify(request)}`);
+
+		rpcCall = function (callback) {
+			global.rpcClient.command([request], function (err, result, resHeaders) {
+				try {
+					if (err != null) {
+						logStats(request.method, true, new Date().getTime() - startTime, false);
+
+						throw new Error(`RpcError: type=failure-02`);
+					}
+
+					if (Array.isArray(result) && result.length == 1) {
+						var result0 = result[0];
+
+						if (result0 && result0.name && result0.name == "RpcError") {
+							logStats(request.method, true, new Date().getTime() - startTime, false);
+
+							throw new Error(`RpcError: type=errorResponse-03`);
+						}
+					}
+
+					if (result.name && result.name == "RpcError") {
+						logStats(request.method, true, new Date().getTime() - startTime, false);
+
+						throw new Error(`RpcError: type=errorResponse-04`);
+					}
+
+					resolve(result[0]);
+
+					logStats(request.method, true, new Date().getTime() - startTime, true);
+
+					callback();
+
+				} catch (e) {
+					e.userData = { error: err, request: request, result: result };
+
+					utils.logError("283h7ewsede", e, { error: err, request: request, result: result });
+
+					reject(e);
+
+					callback();
+				}
+			});
+		};
+
+		rpcQueue.push({ rpcCall: rpcCall });
+	});
+}
+
+function isFinalBlock(blockhash) {
+	debugLog("isFinalBlock: %s", blockhash);
+
+	return new Promise(async (resolve, reject) => {
+		try {
+			result = await getRpcDataWithParams({ method: "isfinalblock", parameters: [blockhash] });
+
+			if (result == null) {
+				resolve("0");
+				return;
+			}
+
+			if (result.code && result.code < 0) {
+				reject(result);
+				return;
+			}
+
+			resolve(result);
+		} catch (err) {
+			if (err.userData.result[0].code === -1) {
+				debugLog("Avalanche not ready to poll, resolve accordingly")
+				resolve(-1)
+			} else {
+				debugLog("Unrelated error, rethrow")
+				throw (err)
+			}
+		}
+	});
+}
+
+function isFinalTransaction(txid) {
+	debugLog("isFinalTransaction: %s", txid);
+
+	return new Promise(async (resolve, reject) => {
+		try {
+			result = await getRpcDataWithParams({ method: "isFinalTransaction", parameters: [txid] });
+
+			if (result == null) {
+				resolve("0");
+				return;
+			}
+
+			if (result.code && result.code < 0) {
+				reject(result);
+				return;
+			}
+
+			resolve(result);
+		} catch (err) {
+			if (err.userData.result[0].code === -1) {
+				debugLog("Avalanche not ready to poll, resolve accordingly")
+				resolve(-1)
+			} else {
+				debugLog("Unrelated error, rethrow")
+				throw (err)
+			}
+		}
+	});
+}
+
+function unsupportedPromise(minRpcVersionNeeded) {
+	return new Promise(function (resolve, reject) {
+		resolve({ success: false, error: "Unsupported", minRpcVersionNeeded: minRpcVersionNeeded });
+	});
+}
+
+function logStats(cmd, hasParams, dt, success) {
+	if (!global.rpcStats[cmd]) {
+		global.rpcStats[cmd] = { count: 0, withParams: 0, time: 0, successes: 0, failures: 0 };
+	}
+
+	global.rpcStats[cmd].count++;
+	global.rpcStats[cmd].time += dt;
+
+	if (hasParams) {
+		global.rpcStats[cmd].withParams++;
+	}
+
+	if (success) {
+		global.rpcStats[cmd].successes++;
+
+	} else {
+		global.rpcStats[cmd].failures++;
+	}
+}
+
+
+module.exports = {
+	isFinalBlock: isFinalBlock,
+	isFinalTransaction: isFinalTransaction,
+	getBlockchainInfo: getBlockchainInfo,
+	getNetworkInfo: getNetworkInfo,
+	getNetTotals: getNetTotals,
+	getMempoolInfo: getMempoolInfo,
+	getMempoolTxids: getMempoolTxids,
+	getMiningInfo: getMiningInfo,
+	getBlockHash: getBlockHash,
+	getBlock: getBlock,
+	getRawTransaction: getRawTransaction,
+	getUtxo: getUtxo,
+	getMempoolTxDetails: getMempoolTxDetails,
+	getRawMempool: getRawMempool,
+	getUptimeSeconds: getUptimeSeconds,
+	getHelp: getHelp,
+	getRpcMethodHelp: getRpcMethodHelp,
+	getAddress: getAddress,
+	getPeerInfo: getPeerInfo,
+	getChainTxStats: getChainTxStats,
+	getUtxoSetSummary: getUtxoSetSummary,
+	getNetworkHashrate: getNetworkHashrate,
+	getBlockStats: getBlockStats,
+	getBlockHeader: getBlockHeader,
+	decodeScript: decodeScript,
+	decodeRawTransaction: decodeRawTransaction,
+
+	minRpcVersions: minRpcVersions
+};
